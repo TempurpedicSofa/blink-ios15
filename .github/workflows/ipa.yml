@@ -1,0 +1,94 @@
+name: Blink iOS 15 IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ipa:
+    runs-on: macos-14
+    timeout-minutes: 90
+    steps:
+      - name: Checkout Blink 15.0.10
+        uses: actions/checkout@v4
+        with:
+          repository: blinksh/blink
+          ref: 838ba6be408f
+          submodules: recursive
+          path: blink
+
+      - name: Select Xcode 15.4
+        run: |
+          sudo xcode-select -s /Applications/Xcode_15.4.app
+          xcodebuild -version
+          xcodebuild -showsdks | head -40
+
+      - name: Developer config
+        working-directory: blink
+        run: |
+          python3 -c 'open("developer_setup.xcconfig","w").write("""TEAM_ID =
+          BUNDLE_ID = dev.lisp.blinkshell
+          GROUP_ID = dev.lisp.blinkshell
+          CLOUD_ID = dev.lisp.blinkshell
+          KEYCHAIN_ID1 = dev.lisp.blinkshell
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS[config=Debug] = BLINK_PUBLISHING_OPTION_DEVELOPER
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS[config=Release] = BLINK_PUBLISHING_OPTION_DEVELOPER
+          BLINK_MIGRATION_SCHEME = blinkv15
+          """)'
+
+      - name: Drop paid-capability entitlements
+        working-directory: blink
+        run: |
+          python3 -c '
+          import pathlib
+          text = """<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+          <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+          <plist version=\"1.0\"><dict>
+          <key>com.apple.security.application-groups</key>
+          <array><string>group.dev.lisp.blinkshell</string></array>
+          <key>keychain-access-groups</key>
+          <array><string>$(AppIdentifierPrefix)dev.lisp.blinkshell</string></array>
+          </dict></plist>
+          """
+          for name in ("Blink/Blink.entitlements", "BlinkFileProvider/BlinkFileProvider.entitlements"):
+              pathlib.Path(name).write_text(text)
+          '
+
+      - name: Resolve frameworks
+        working-directory: blink
+        run: ./get_frameworks.sh
+
+      - name: Build unsigned Debug app
+        working-directory: blink
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Blink.xcodeproj \
+            -scheme Blink \
+            -configuration Debug \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/dd" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            IPHONEOS_DEPLOYMENT_TARGET=15.0 \
+            build
+
+      - name: Pack IPA
+        run: |
+          APP=$(find "$RUNNER_TEMP/dd/Build/Products" -type d -name 'Blink.app' | head -1)
+          test -n "$APP"
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -qry Blink-15.0.10-ios15.ipa Payload
+          ls -lh Blink-15.0.10-ios15.ipa
+          # deployment target stamped in the binary
+          vtool -show-build Payload/Blink.app/Blink | head -20 || true
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Blink-15.0.10-ios15
+          path: Blink-15.0.10-ios15.ipa
+          retention-days: 14
