@@ -91,7 +91,7 @@ jobs:
       - name: Stub libbuild_cli
         working-directory: blink
         run: |
-          python3 -c 'open("/tmp/build_cli_stub.c","w").write("int blink_build_cmd(int c, char **v, void *e, void **s){return 1;}\n")'
+          python3 -c 'open("/tmp/build_cli_stub.c","w").write("#include <sys/ioctl.h>\nint blink_build_cmd(int c, char **v, void *e, void **s){return 1;}\nvoid build_auto_start_wg_ports(void){}\nvoid signal_release(void *p){}\nvoid signal_send(void *p, int sig){}\nvoid signal_winsize(void *p, struct winsize *w){}\n")'
           xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=15.0 -c /tmp/build_cli_stub.c -o /tmp/build_cli_stub.o
           mkdir -p Frameworks
           xcrun libtool -static -o Frameworks/libbuild_cli.a /tmp/build_cli_stub.o
