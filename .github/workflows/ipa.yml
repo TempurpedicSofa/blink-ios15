@@ -14,9 +14,9 @@ jobs:
           git init blink
           cd blink
           git remote add origin https://github.com/blinksh/blink.git
-          git fetch --depth 1 origin 838ba6be408f
+          git fetch --depth 1 origin 838ba6be408f6ef89e4f5d6a920b6d8433ca5d75
           git checkout --detach FETCH_HEAD
-          git submodule update --init --recursive --depth 1
+          git submodule update --init --recursive
 
       - name: Select Xcode 15.4
         run: |
