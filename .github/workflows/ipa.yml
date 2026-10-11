@@ -55,6 +55,15 @@ jobs:
               pathlib.Path(name).write_text(text)
           '
 
+      - name: Pin packages whose tags disappeared
+        working-directory: blink
+        run: |
+          sed -i '' 's|swift-tools-version:5.3|swift-tools-version:5.5|' xcfs/Package.swift
+          sed -i '' 's|https://github.com/yury/ios_system/releases/download/v2.9.3/|https://github.com/blinksh/ios_system/releases/download/v2.9.3/|g' xcfs/Package.swift
+          sed -i '' 's|.package(url: "https://github.com/yury/SSHConfig", from: "0.0.5"),|.package(url: "https://github.com/yury/SSHConfig", .revision("357648c1ecd2206585a14e61d09e6bb781d085b0")),|' xcfs/Package.swift
+          rm -f xcfs/Package.resolved
+          grep -n 'SSHConfig\|ios_system/releases\|swift-tools-version' xcfs/Package.swift
+
       - name: Resolve frameworks
         working-directory: blink
         run: ./get_frameworks.sh
