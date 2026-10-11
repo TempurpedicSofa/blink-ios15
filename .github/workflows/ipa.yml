@@ -72,6 +72,14 @@ jobs:
           rm -f xcfs/Package.resolved
           grep -n 'package(url\|ios_system/releases\|swift-tools-version' xcfs/Package.swift
 
+      - name: Use fileno for session streams
+        working-directory: blink
+        run: |
+          sed -i '' 's/ios_stdinFd()/fileno(thread_stdin)/' Blink/Commands/build.m
+          sed -i '' 's/ios_stdoutFd()/fileno(thread_stdout)/' Blink/Commands/build.m
+          sed -i '' 's/ios_stderrFd()/fileno(thread_stderr)/' Blink/Commands/build.m
+          grep -n 'fileno(thread_' Blink/Commands/build.m
+
       - name: Download xcframeworks
         working-directory: blink
         run: python3 "$GITHUB_WORKSPACE/ci/fetch_frameworks.py"
