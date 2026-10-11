@@ -8,6 +8,11 @@ jobs:
     runs-on: macos-14
     timeout-minutes: 90
     steps:
+      - name: Checkout this workflow
+        uses: actions/checkout@v4
+        with:
+          path: ci
+
       - name: Checkout Blink 15.0.10
         run: |
           git config --global url.https://github.com/.insteadOf git@github.com:
@@ -66,6 +71,10 @@ jobs:
           sed -i '' 's|.package(url: "https://github.com/blinksh/swift-argument-parser", .upToNextMinor(from: "0.5.1")),|.package(url: "https://github.com/blinksh/swift-argument-parser", .revision("3988c22d6601691d431b00b8b551b1fd6567d2ba")),|' xcfs/Package.swift
           rm -f xcfs/Package.resolved
           grep -n 'package(url\|ios_system/releases\|swift-tools-version' xcfs/Package.swift
+
+      - name: Download xcframeworks
+        working-directory: blink
+        run: python3 "$GITHUB_WORKSPACE/ci/fetch_frameworks.py"
 
       - name: Resolve frameworks
         working-directory: blink
