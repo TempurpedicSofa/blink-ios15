@@ -1,0 +1,101 @@
+name: Blink iOS 26 IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ipa:
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - name: Checkout this workflow
+        uses: actions/checkout@v4
+        with:
+          path: ci
+
+      - name: Checkout Blink 18.7.0
+        run: |
+          git init blink
+          cd blink
+          git remote add origin https://github.com/blinksh/blink.git
+          git fetch --depth 1 origin a90b4423c8b7a86770c24a7eaa6c13b0a5904b18
+          git checkout --detach FETCH_HEAD
+          git submodule update --init --recursive
+
+      - name: Select Xcode 26.6
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.6.app
+          xcodebuild -version
+          xcodebuild -showsdks | head -20
+
+      - name: Developer config
+        working-directory: blink
+        run: |
+          python3 -c 'open("developer_setup.xcconfig","w").write("""TEAM_ID =
+          BUNDLE_ID = dev.family.blinkshell
+          GROUP_ID = dev.family.blinkshell
+          CLOUD_ID = dev.family.blinkshell
+          KEYCHAIN_ID1 = dev.family.blinkshell
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS[config=Debug] = BLINK_PUBLISHING_OPTION_DEVELOPER
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS[config=Release] = BLINK_PUBLISHING_OPTION_DEVELOPER
+          BLINK_MIGRATION_SCHEME = blinkv15
+          WHATS_NEW_URL = http:/$()/localhost/whats-new
+          CONVERSION_OPPORTUNITY_URL = http:/$()/localhost/conversionOpportunity
+          WHATS_NEW_GITHUB_URL = http:/$()/localhost/conversionOpportunity
+          BLINK_APP_FONT = JetBrains Mono
+          """)'
+
+      - name: Sideload patches
+        run: python3 "$GITHUB_WORKSPACE/ci/patch_ios26.py" "$GITHUB_WORKSPACE/blink"
+
+      - name: Frameworks and vim runtime
+        working-directory: blink
+        run: |
+          ./get_frameworks.sh
+          ./get_resources.sh
+
+      - name: Build unsigned Release app
+        working-directory: blink
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Blink.xcodeproj \
+            -scheme Blink \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/dd" \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            SUPPORTS_MACCATALYST=NO \
+            ENABLE_PREVIEWS=NO \
+            SWIFT_ACTIVE_COMPILATION_CONDITIONS='BLINK_PUBLISHING_OPTION_DEVELOPER' \
+            build
+
+      - name: Pack IPA
+        run: |
+          set -euo pipefail
+          APP=$(find "$RUNNER_TEMP/dd/Build/Products" -type d -name 'Blink.app' | head -1)
+          test -n "$APP"
+          test -d "$APP"
+          # File-provider and other extensions need entitlements a free Apple ID cannot grant.
+          rm -rf "$APP/PlugIns"
+          MIN=$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$APP/Info.plist")
+          echo "MinimumOSVersion=$MIN"
+          python3 -c 'import sys; a,b=sys.argv[1].split(".")[:2]; raise SystemExit(0 if (int(a), int(b)) <= (26, 7) else 1)' "$MIN"
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -qry Blink-18.7.0-ios26.ipa Payload
+          ls -lh Blink-18.7.0-ios26.ipa
+          vtool -show-build Payload/Blink.app/Blink | head -30 || true
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Blink-18.7.0-ios26
+          path: Blink-18.7.0-ios26.ipa
+          retention-days: 14
