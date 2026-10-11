@@ -88,6 +88,15 @@ jobs:
         working-directory: blink
         run: ./get_frameworks.sh
 
+      - name: Stub libbuild_cli
+        working-directory: blink
+        run: |
+          python3 -c 'open("/tmp/build_cli_stub.c","w").write("int blink_build_cmd(int c, char **v, void *e, void **s){return 1;}\n")'
+          xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=15.0 -c /tmp/build_cli_stub.c -o /tmp/build_cli_stub.o
+          mkdir -p Frameworks
+          xcrun libtool -static -o Frameworks/libbuild_cli.a /tmp/build_cli_stub.o
+          ls -l Frameworks/libbuild_cli.a
+
       - name: Build unsigned Debug app
         working-directory: blink
         run: |
