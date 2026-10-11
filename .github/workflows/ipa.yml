@@ -61,8 +61,11 @@ jobs:
           sed -i '' 's|swift-tools-version:5.3|swift-tools-version:5.5|' xcfs/Package.swift
           sed -i '' 's|https://github.com/yury/ios_system/releases/download/v2.9.3/|https://github.com/blinksh/ios_system/releases/download/v2.9.3/|g' xcfs/Package.swift
           sed -i '' 's|.package(url: "https://github.com/yury/SSHConfig", from: "0.0.5"),|.package(url: "https://github.com/yury/SSHConfig", .revision("357648c1ecd2206585a14e61d09e6bb781d085b0")),|' xcfs/Package.swift
+          sed -i '' 's|.package(url: "https://github.com/yury/FMake", from: "0.0.15"),|.package(url: "https://github.com/yury/FMake", .revision("db46d80e35764c2367fb23ea01e1876d2c2fa9a6")),|' xcfs/Package.swift
+          sed -i '' 's|.package(url: "https://github.com/blinksh/BlinkBuild", from: "0.0.22"),|.package(url: "https://github.com/blinksh/BlinkBuild", .revision("90576edfec9c71d4322cb164e24934f265b6ebf1")),|' xcfs/Package.swift
+          sed -i '' 's|.package(url: "https://github.com/blinksh/swift-argument-parser", .upToNextMinor(from: "0.5.1")),|.package(url: "https://github.com/blinksh/swift-argument-parser", .revision("3988c22d6601691d431b00b8b551b1fd6567d2ba")),|' xcfs/Package.swift
           rm -f xcfs/Package.resolved
-          grep -n 'SSHConfig\|ios_system/releases\|swift-tools-version' xcfs/Package.swift
+          grep -n 'package(url\|ios_system/releases\|swift-tools-version' xcfs/Package.swift
 
       - name: Resolve frameworks
         working-directory: blink
